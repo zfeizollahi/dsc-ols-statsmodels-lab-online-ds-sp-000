@@ -23,13 +23,21 @@ In this lab, you'll work with the "Advertising Dataset", which is a very popular
 
 ```python
 # Load necessary libraries and import the data
-
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+import scipy.stats as stats
+import seaborn as sns
 ```
 
 
 ```python
 # Check the columns and first few rows
-
+# Check the columns and first few rows
+df = pd.read_csv('Advertising.csv', index_col=0)
+df.head()
 ```
 
 
@@ -104,7 +112,7 @@ In this lab, you'll work with the "Advertising Dataset", which is a very popular
 
 ```python
 # Get the 5-point statistics for data 
-
+df.describe()
 ```
 
 
@@ -197,25 +205,29 @@ In this lab, you'll work with the "Advertising Dataset", which is a very popular
 
 
 
-
-```python
-# Describe the contents of this dataset
-```
+### Describe the contents of this dataset
+There are 200 observations, all numerical values, no missing values.
+TV mean and mode are similar and likely normallly distributed since range is 300-0, Quantile range is 75-218. 
+Radio 0-50 range, mean and mode similar but quantile suggests more towards lower end (may be some outliers in the higher range). Newspaper very much skewed lower, since 0-114 max, but mean and mode are 30, 25. and quantile range is 12-45. May need to be aware of those outliers. Sales also not too made. might be easier to plot it since comparing mean and modes and quantile ranges are close but not the same.
 
 ## Step 2: Plot histograms with kde overlay to check the distribution of the predictors
 
 
 ```python
 # For all the variables, check distribution by creating a histogram with kde
-
+plt.style.use('ggplot')
+sns.distplot(df['TV'], color='red', kde_kws={'color': 'blue'})
 ```
 
+    /anaconda3/envs/learn-env/lib/python3.6/site-packages/scipy/stats/stats.py:1713: FutureWarning: Using a non-tuple sequence for multidimensional indexing is deprecated; use `arr[tuple(seq)]` instead of `arr[seq]`. In the future this will be interpreted as an array index, `arr[np.array(seq)]`, which will result either in an error or a different result.
+      return np.add.reduce(sorted[indexer] * weights, axis=axis) / sumval
 
-![png](index_files/index_6_0.png)
 
 
 
-![png](index_files/index_6_1.png)
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb88df5400>
+
 
 
 
@@ -223,13 +235,62 @@ In this lab, you'll work with the "Advertising Dataset", which is a very popular
 
 
 
-![png](index_files/index_6_3.png)
+```python
+sns.distplot(df['radio'], kde_kws={'color': 'blue'})
+```
+
+    /anaconda3/envs/learn-env/lib/python3.6/site-packages/scipy/stats/stats.py:1713: FutureWarning: Using a non-tuple sequence for multidimensional indexing is deprecated; use `arr[tuple(seq)]` instead of `arr[seq]`. In the future this will be interpreted as an array index, `arr[np.array(seq)]`, which will result either in an error or a different result.
+      return np.add.reduce(sorted[indexer] * weights, axis=axis) / sumval
+
+
+
+
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb703996a0>
+
+
+
+
+![png](index_files/index_7_2.png)
 
 
 
 ```python
-# Record your observations here 
+sns.distplot(df['newspaper'], kde_kws={'color': 'blue'})
 ```
+
+    /anaconda3/envs/learn-env/lib/python3.6/site-packages/scipy/stats/stats.py:1713: FutureWarning: Using a non-tuple sequence for multidimensional indexing is deprecated; use `arr[tuple(seq)]` instead of `arr[seq]`. In the future this will be interpreted as an array index, `arr[np.array(seq)]`, which will result either in an error or a different result.
+      return np.add.reduce(sorted[indexer] * weights, axis=axis) / sumval
+
+
+
+
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb703cb2b0>
+
+
+
+
+![png](index_files/index_8_2.png)
+
+
+
+```python
+sns.distplot(df['sales'], kde_kws={'color': 'blue'});
+```
+
+    /anaconda3/envs/learn-env/lib/python3.6/site-packages/scipy/stats/stats.py:1713: FutureWarning: Using a non-tuple sequence for multidimensional indexing is deprecated; use `arr[tuple(seq)]` instead of `arr[seq]`. In the future this will be interpreted as an array index, `arr[np.array(seq)]`, which will result either in an error or a different result.
+      return np.add.reduce(sorted[indexer] * weights, axis=axis) / sumval
+
+
+
+![png](index_files/index_9_1.png)
+
+
+#### Observations
+As suspected, newspaper is very much skewed right (long tail at upper end)
+however they are not outliers it seems gradual enough. 
+TV and Radio seem to have two peaks, but overall fairly normal
 
 
 ## Step 3: Test for the linearity assumption 
@@ -239,17 +300,28 @@ Use scatterplots to plot each predictor against the target variable
 
 ```python
 # visualize the relationship between the preditors and the target using scatterplots
-
+fig = plt.figure(figsize=[15,5])
+ax = fig.add_subplot(131)
+ax.scatter(df['TV'], df['sales'], c='purple')
+plt.ylabel('Sales')
+ax.set_xlabel('TV')
+ax1 = fig.add_subplot(132, sharey=ax)
+ax1.scatter(df['radio'], df['sales'], c='purple')
+ax1.set_xlabel('radio')
+ax2 = fig.add_subplot(133, sharey=ax)
+ax2.scatter(df['newspaper'], df['sales'], c='purple')
+ax2.set_xlabel('newspaper')
+plt.title("Sales by Advertisting type & amount")
+plt.show()
 ```
 
 
-![png](index_files/index_9_0.png)
+![png](index_files/index_12_0.png)
 
 
-
-```python
-# Record yor observations on linearity here 
-```
+#### Record yor observations on linearity here 
+TV looks somewhat lineary, higher ranges start to spread out. Some linear trend in radio but also varied. some high end on the radio scale has very low sales. 
+Newspapers seems to be all over the place and not linear, perhaps not even correlated.
 
 ### Conclusion so far
 
@@ -262,11 +334,11 @@ Note: Kurtosis can be dealt with using techniques like log normalization to "pus
 
 
 ```python
-# import libraries
-
 # build the formula 
+f = 'sales~TV'
 
 # create a fitted model in one line
+model = ols(formula=f, data=df).fit()
 
 ```
 
@@ -274,7 +346,7 @@ Note: Kurtosis can be dealt with using techniques like log normalization to "pus
 
 
 ```python
-
+model.summary()
 ```
 
 
@@ -292,10 +364,10 @@ Note: Kurtosis can be dealt with using techniques like log normalization to "pus
   <th>Method:</th>             <td>Least Squares</td>  <th>  F-statistic:       </th> <td>   312.1</td>
 </tr>
 <tr>
-  <th>Date:</th>             <td>Fri, 12 Oct 2018</td> <th>  Prob (F-statistic):</th> <td>1.47e-42</td>
+  <th>Date:</th>             <td>Sat, 13 Jul 2019</td> <th>  Prob (F-statistic):</th> <td>1.47e-42</td>
 </tr>
 <tr>
-  <th>Time:</th>                 <td>21:04:59</td>     <th>  Log-Likelihood:    </th> <td> -519.05</td>
+  <th>Time:</th>                 <td>12:40:21</td>     <th>  Log-Likelihood:    </th> <td> -519.05</td>
 </tr>
 <tr>
   <th>No. Observations:</th>      <td>   200</td>      <th>  AIC:               </th> <td>   1042.</td>
@@ -334,7 +406,7 @@ Note: Kurtosis can be dealt with using techniques like log normalization to "pus
 <tr>
   <th>Kurtosis:</th>      <td> 2.779</td> <th>  Cond. No.          </th> <td>    338.</td>
 </tr>
-</table>
+</table><br/><br/>Warnings:<br/>[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
 
 
 
@@ -347,53 +419,66 @@ Hint: You can use the `model.predict()` function to predict the start and end po
 
 ```python
 # create a DataFrame with the minimum and maximum values of TV
-
 # make predictions for those x values and store them
-
+min_max_df = pd.DataFrame(data={'TV': [df.TV.min(), df.TV.max()]})
+min_max_df['Prediction'] = model.predict(min_max_df)
+print(min_max_df)
 
 # first, plot the observed data and the least squares line
+fig = plt.figure(figsize=[10,8])
+ax = fig.add_subplot(111)
+ax.scatter(df['TV'], df['sales'], c='purple')
+ax.plot(min_max_df['TV'], min_max_df['Prediction'])
+plt.show()
 ```
 
-          TV
-    0    0.7
-    1  296.4
-    0     7.065869
-    1    21.122454
-    dtype: float64
+          TV  Prediction
+    0    0.7    7.065869
+    1  296.4   21.122454
 
 
 
-![png](index_files/index_16_1.png)
+![png](index_files/index_19_1.png)
 
 
 ## Step 7: Visualize the error term for variance and heteroscedasticity
 
 
 ```python
-
+fig = plt.figure(figsize=(15,8))
+fig = sm.graphics.plot_regress_exog(model, "TV", fig=fig)
+plt.show()
 ```
 
 
-![png](index_files/index_18_0.png)
+![png](index_files/index_21_0.png)
 
 
-
-```python
-# Record Your observations on heteroscedasticity
-```
+#### Record Your observations on heteroscedasticity
+Plot above (scatter plot) shows that TV sales have cone line shape and scatter wider as it goes up. So the data is heteroscedastic and breaks the assumptions for linear regression. The residual plot also shows the heterodastic tendency
 
 ## Step 8: Check the normality assumptions by creating a QQ-plot
 
 
 ```python
 # Code for QQ-plot here
+residuals = model.resid
+sm.graphics.qqplot(residuals, dist=stats.norm, line='45', fit=True)
 ```
 
 
-```python
-# Record Your observations on the normality assumption
 
-```
+
+![png](index_files/index_24_0.png)
+
+
+
+
+![png](index_files/index_24_1.png)
+
+
+#### Record Your observations on the normality assumption
+Fairly normal distribution - normality assumption holds.
 
 ## Step 9: Repeat the above for radio and record your observations
 
